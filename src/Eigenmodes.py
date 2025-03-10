@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.sparse as sp
+import scipy.linalg as la
 import scipy.sparse.linalg as spla
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -33,9 +33,13 @@ def laplacian_2d_diagonal(N):
     return M
 
 
-"""
-TO DO: Implement a way to simulate on circular or rectangular domains. 
+""""
+TO DO: 
+
+- Implement a way to simulate on circular or rectangular domains. 
 Possibly by adjusting our matrix M.
+
+- Compare performance of scipy.sparse.linag and non-sparse solvers (for example, scipy.linalg.eig)
 """
 
 # Example for N = 4
