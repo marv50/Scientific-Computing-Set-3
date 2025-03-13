@@ -71,20 +71,39 @@ def laplacian_circular(N, radius=0.8):
     X, Y = np.meshgrid(x, y)
     # Boolean mask for points inside the circle
     mask = (X**2 + Y**2) <= radius**2
-    valid_indices = np.where(mask.flatten())[0]
+    print(mask)
 
+    # size = N * N
     main_diag = -4 * np.ones(size)
     side_diag = np.ones(size - 1)
+    # Remove wrap-around connections between rows
     side_diag[np.arange(1, size) % N == 0] = 0
     up_down_diag = np.ones(size - N)
 
-    M_full = sp.diags([main_diag, side_diag, side_diag, up_down_diag, up_down_diag],
-                      [0, -1, 1, -N, N],
-                      shape=(size, size),
-                      format='csr')
-    # Restrict to points inside the circle
-    M_circular = M_full.tocsr()[valid_indices, :][:, valid_indices]
-    return M_circular, N, N, mask
+    M = sp.diags([main_diag, side_diag, side_diag, up_down_diag, up_down_diag],
+                 [0, -1, 1, -N, N],
+                 shape=(size, size),
+                 format='csr')
+    for i, val in enumerate(mask.flatten()):
+        if not val:
+            M[i, :] = 0
+            M[:, i] = 0
+    return M, N, N, mask
+    
+    # valid_indices = np.where(mask.flatten())[0]
+
+    # main_diag = -4 * np.ones(size)
+    # side_diag = np.ones(size - 1)
+    # side_diag[np.arange(1, size) % N == 0] = 0
+    # up_down_diag = np.ones(size - N)
+
+    # M_full = sp.diags([main_diag, side_diag, side_diag, up_down_diag, up_down_diag],
+    #                   [0, -1, 1, -N, N],
+    #                   shape=(size, size),
+    #                   format='csr')
+    # # Restrict to points inside the circle
+    # M_circular = M_full.tocsr()[valid_indices, :][:, valid_indices]
+    # return M_circular, N, N, mask
 
 
 def simulate_domain(domain, N):
@@ -163,8 +182,16 @@ def plot_eigenmode(results, domain):
     else:
         # For circular domain, create a full grid and insert valid values.
         field = np.zeros((Ny, Nx))
+        print(mask)
         valid_indices = np.where(mask.flatten())[0]
+
         temp = np.zeros(Nx * Ny)
+        print(temp.shape)
+        print(valid_indices.shape)
+        print(valid_indices)
+        print(v1.shape)
+        print(v1)
+        v1 = v1[mask.flatten()]
         temp[valid_indices] = v1
         field = temp.reshape((Ny, Nx))
 
@@ -177,9 +204,10 @@ def plot_eigenmode(results, domain):
 
 if __name__ == "__main__":
 
-    N = 50
-    domains = ["square", "rectangle", "circle"]
+    N = 6
+    # domains = ["square", "rectangle", "circle"]
 
+    domains = ["circle"]
     for domain in domains:
         results = simulate_domain(domain, N)
         print(f"Eigenvalues for {domain.capitalize()} domain:")
