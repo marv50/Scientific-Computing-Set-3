@@ -1,7 +1,9 @@
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
+import scipy.linalg as la
 import matplotlib.pyplot as plt
+import time
 
 
 def laplacian_square(N):
@@ -23,7 +25,7 @@ def laplacian_square(N):
     M = sp.diags([main_diag, side_diag, side_diag, up_down_diag, up_down_diag],
                  [0, -1, 1, -N, N],
                  shape=(size, size),
-                 format='csr')
+                 format='lil')
     return M, N, N, None
 
 
@@ -48,7 +50,7 @@ def laplacian_rectangular(N):
     M = sp.diags([main_diag, side_diag, side_diag, up_down_diag, up_down_diag],
                  [0, -1, 1, -Nx, Nx],
                  shape=(size, size),
-                 format='csr')
+                 format='lil')
     return M, Nx, Ny, None
 
 
@@ -71,9 +73,7 @@ def laplacian_circular(N, radius=0.8):
     X, Y = np.meshgrid(x, y)
     # Boolean mask for points inside the circle
     mask = (X**2 + Y**2) <= radius**2
-    print(mask)
 
-    # size = N * N
     main_diag = -4 * np.ones(size)
     side_diag = np.ones(size - 1)
     # Remove wrap-around connections between rows
@@ -83,36 +83,23 @@ def laplacian_circular(N, radius=0.8):
     M = sp.diags([main_diag, side_diag, side_diag, up_down_diag, up_down_diag],
                  [0, -1, 1, -N, N],
                  shape=(size, size),
-                 format='csr')
+                 format='lil')
+    # Zero out rows and columns for points outside the circular domain
     for i, val in enumerate(mask.flatten()):
         if not val:
             M[i, :] = 0
             M[:, i] = 0
     return M, N, N, mask
-    
-    # valid_indices = np.where(mask.flatten())[0]
-
-    # main_diag = -4 * np.ones(size)
-    # side_diag = np.ones(size - 1)
-    # side_diag[np.arange(1, size) % N == 0] = 0
-    # up_down_diag = np.ones(size - N)
-
-    # M_full = sp.diags([main_diag, side_diag, side_diag, up_down_diag, up_down_diag],
-    #                   [0, -1, 1, -N, N],
-    #                   shape=(size, size),
-    #                   format='csr')
-    # # Restrict to points inside the circle
-    # M_circular = M_full.tocsr()[valid_indices, :][:, valid_indices]
-    # return M_circular, N, N, mask
 
 
-def simulate_domain(domain, N):
+def simulate_domain(domain, N, solver="sparse"):
     """
     Simulates the eigenvalue problem for the Laplacian on a specified domain.
 
     Parameters:
         domain (str): One of "square", "rectangle", or "circle" (or "circular").
         N (int): Grid size parameter.
+        solver (str): "sparse" or "dense" indicating which eigenvalue solver to use.
 
     Returns:
         results: A dictionary containing the Laplacian matrix M, grid dimensions (Nx, Ny),
@@ -126,21 +113,94 @@ def simulate_domain(domain, N):
     elif domain in ["circle", "circular"]:
         M, Nx, Ny, mask = laplacian_circular(N)
     else:
-        raise ValueError(
-            "Invalid domain. Choose 'square', 'rectangle', or 'circle'.")
+        raise ValueError("Invalid domain. Choose 'square', 'rectangle', or 'circle'.")
 
-    # Compute the 5 smallest eigenvalues and corresponding eigenvectors.
-    eigenvalues, eigenvectors = spla.eigs(M, k=5, which="SM")
+    if solver == "sparse":
+        # Use the sparse eigenvalue solver (spla.eigs)
+        eigenvalues, eigenvectors = spla.eigs(M, k=5, which="SM")
+        eigenvalues = eigenvalues.real  # take the real parts
+    elif solver == "dense":
+        # Convert sparse matrix to dense array
+        A = M.toarray()
+        # Use dense solver for symmetric matrices: scipy.linalg.eigh()
+        eigenvalues_all, eigenvectors_all = la.eigh(A)
+        # Sort eigenvalues by absolute value and select the 5 smallest
+        idx = np.argsort(np.abs(eigenvalues_all))
+        eigenvalues = eigenvalues_all[idx][:5]
+        eigenvectors = eigenvectors_all[:, idx][:, :5]
+    else:
+        raise ValueError("Invalid solver type. Use 'sparse' or 'dense'.")
 
     results = {
         'M': M,
         'Nx': Nx,
         'Ny': Ny,
         'mask': mask,
-        'eigenvalues': eigenvalues.real,
+        'eigenvalues': eigenvalues,
         'eigenvectors': eigenvectors
     }
     return results
+
+
+def compare_solver_performance(domain, N, num_runs):
+    """
+    Compares the performance of the sparse and dense eigenvalue solvers over multiple runs.
+
+    Parameters:
+        domain (str): Domain type ("square", "rectangle", or "circle").
+        N (int): Grid size parameter.
+        num_runs (int): Number of runs for timing each solver.
+
+    This function times the eigenvalue decomposition using:
+        - The sparse solver (spla.eigs): Efficient for large, sparse matrices.
+        - The dense solver (scipy.linalg.eigh): Optimized for symmetric matrices.
+    
+    The function calculates and prints the mean and standard deviation of the run times.
+    """
+    print(f"\nComparing solvers for the {domain} domain with grid size parameter N = {N} over {num_runs} runs")
+
+    sparse_times = []
+    dense_times = []
+
+    # Run the solvers for a number of runs
+    for run in range(num_runs):
+        # Time the sparse solver
+        start_time = time.perf_counter()
+        results_sparse = simulate_domain(domain, N, solver="sparse")
+        sparse_time = time.perf_counter() - start_time
+        sparse_times.append(sparse_time)
+
+        # Time the dense solver
+        start_time = time.perf_counter()
+        results_dense = simulate_domain(domain, N, solver="dense")
+        dense_time = time.perf_counter() - start_time
+        dense_times.append(dense_time)
+
+    # Calculate statistics
+    sparse_mean = np.mean(sparse_times)
+    sparse_std = np.std(sparse_times)
+    dense_mean = np.mean(dense_times)
+    dense_std = np.std(dense_times)
+
+    print(f"Sparse solver (spla.eigs) mean time: {sparse_mean:.6f} seconds, std: {sparse_std:.6f} seconds")
+    print(f"Dense solver (scipy.linalg.eigh) mean time: {dense_mean:.6f} seconds, std: {dense_std:.6f} seconds")
+
+    print("\nEigenvalues from the last run of the sparse solver:")
+    print(results_sparse['eigenvalues'])
+    print("\nEigenvalues from the last run of the dense solver:")
+    print(results_dense['eigenvalues'])
+
+    # Create a dictionary with statistics for later plotting
+    stats = {
+        "sparse_mean": sparse_mean,
+        "sparse_std": sparse_std,
+        "dense_mean": dense_mean,
+        "dense_std": dense_std,
+        "sparse_times": sparse_times,
+        "dense_times": dense_times
+    }
+
+    return results_sparse, results_dense, stats
 
 
 def plot_matrix(results, domain):
@@ -155,8 +215,7 @@ def plot_matrix(results, domain):
     plt.figure(figsize=(6, 5))
     plt.imshow(M.toarray(), cmap="viridis")
     plt.colorbar(label="Matrix Value")
-    plt.title(
-        f"Visualization of Laplacian Matrix ({domain.capitalize()} Domain)")
+    plt.title(f"Visualization of Laplacian Matrix ({domain.capitalize()} Domain)")
     plt.show()
 
 
@@ -171,7 +230,6 @@ def plot_eigenmode(results, domain):
     Nx = results['Nx']
     Ny = results['Ny']
     mask = results['mask']
-    eigenvalues = results['eigenvalues']
     eigenvectors = results['eigenvectors']
 
     # Extract first eigenvector
@@ -182,15 +240,8 @@ def plot_eigenmode(results, domain):
     else:
         # For circular domain, create a full grid and insert valid values.
         field = np.zeros((Ny, Nx))
-        print(mask)
         valid_indices = np.where(mask.flatten())[0]
-
         temp = np.zeros(Nx * Ny)
-        print(temp.shape)
-        print(valid_indices.shape)
-        print(valid_indices)
-        print(v1.shape)
-        print(v1)
         v1 = v1[mask.flatten()]
         temp[valid_indices] = v1
         field = temp.reshape((Ny, Nx))
@@ -203,14 +254,40 @@ def plot_eigenmode(results, domain):
 
 
 if __name__ == "__main__":
+    N = 30       # Grid size parameter (adjust as needed)
+    num_runs = 10  # Number of runs for performance timing
 
-    N = 6
-    # domains = ["square", "rectangle", "circle"]
+    # Define the domains to test
+    domains = ["square", "rectangle", "circle"]
+    performance_stats = {}
 
-    domains = ["circle"]
+    # Run performance tests for each domain and store the statistics
     for domain in domains:
-        results = simulate_domain(domain, N)
-        print(f"Eigenvalues for {domain.capitalize()} domain:")
-        print(results['eigenvalues'])
-        plot_matrix(results, domain)
-        plot_eigenmode(results, domain)
+        print(f"\nRunning performance test for {domain} domain:")
+        _, _, stats = compare_solver_performance(domain, N, num_runs)
+        performance_stats[domain] = stats
+
+    # Prepare data for plotting: mean execution times and standard deviations
+    sparse_means = [performance_stats[d]["sparse_mean"] for d in domains]
+    sparse_stds = [performance_stats[d]["sparse_std"] for d in domains]
+    dense_means = [performance_stats[d]["dense_mean"] for d in domains]
+    dense_stds = [performance_stats[d]["dense_std"] for d in domains]
+
+    # Set up the bar chart (grouped by domain)
+    x = np.arange(len(domains))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    rects1 = ax.bar(x - width/2, sparse_means, width, yerr=sparse_stds,
+                    label='Sparse (eigs)', capsize=5)
+    rects2 = ax.bar(x + width/2, dense_means, width, yerr=dense_stds,
+                    label='Dense (eigh)', capsize=5)
+
+    ax.set_ylabel('Mean Execution Time (seconds)')
+    ax.set_title('Solver Performance Comparison by Domain')
+    ax.set_xticks(x)
+    ax.set_xticklabels([d.capitalize() for d in domains])
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
