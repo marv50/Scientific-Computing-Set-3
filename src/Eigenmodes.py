@@ -54,7 +54,7 @@ def laplacian_rectangular(N):
     return M, Nx, Ny, None
 
 
-def laplacian_circular(N, radius=0.8):
+def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
     """
     Constructs the 2D Laplacian matrix for a circular domain.
 
@@ -68,8 +68,8 @@ def laplacian_circular(N, radius=0.8):
     """
     size = N * N
     # Create coordinates on a square in [-1, 1] x [-1, 1]
-    x = np.linspace(-1, 1, N)
-    y = np.linspace(-1, 1, N)
+    x = np.linspace(-xsize, xsize, N)
+    y = np.linspace(-ysize, ysize, N)
     X, Y = np.meshgrid(x, y)
     # Boolean mask for points inside the circle
     mask = (X**2 + Y**2) <= radius**2
@@ -89,6 +89,8 @@ def laplacian_circular(N, radius=0.8):
         if not val:
             M[i, :] = 0
             M[:, i] = 0
+            M[i, i] = 1  # Set diagonal to 1 for Dirichlet boundary condition
+    print(mask)
     return M, N, N, mask
 
 
