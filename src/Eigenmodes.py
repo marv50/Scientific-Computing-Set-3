@@ -89,8 +89,7 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
         if not val:
             M[i, :] = 0
             M[:, i] = 0
-            M[i, i] = 1  # Set diagonal to 1 for Dirichlet boundary condition
-    print(mask)
+            M[i, i] = 1 
     return M, N, N, mask
 
 
