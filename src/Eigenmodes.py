@@ -62,7 +62,7 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
     and only those points satisfying x^2 + y^2 <= radius^2 are kept.
 
     Returns:
-        M_circular: Sparse Laplacian matrix for the circular domain.
+        M: Sparse Laplacian matrix for the circular domain.
         Nx, Ny: The grid dimensions (both equal to N).
         mask: A 2D boolean array (shape N x N) where True indicates the point is inside the circle.
     """
@@ -89,11 +89,11 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
         if not val:
             M[i, :] = 0
             M[:, i] = 0
-            M[i, i] = 1 
+            M[i, i] = 1
     return M, N, N, mask
 
 
-def simulate_domain(domain, N, solver="sparse"):
+def simulate_domain(domain, N, solver="sparse", k=6):
     """
     Simulates the eigenvalue problem for the Laplacian on a specified domain.
 
@@ -101,6 +101,7 @@ def simulate_domain(domain, N, solver="sparse"):
         domain (str): One of "square", "rectangle", or "circle" (or "circular").
         N (int): Grid size parameter.
         solver (str): "sparse" or "dense" indicating which eigenvalue solver to use.
+        k (int): Number of eigenmodes to compute.
 
     Returns:
         results: A dictionary containing the Laplacian matrix M, grid dimensions (Nx, Ny),
@@ -114,21 +115,22 @@ def simulate_domain(domain, N, solver="sparse"):
     elif domain in ["circle", "circular"]:
         M, Nx, Ny, mask = laplacian_circular(N)
     else:
-        raise ValueError("Invalid domain. Choose 'square', 'rectangle', or 'circle'.")
+        raise ValueError(
+            "Invalid domain. Choose 'square', 'rectangle', or 'circle'.")
 
     if solver == "sparse":
         # Use the sparse eigenvalue solver (spla.eigs)
-        eigenvalues, eigenvectors = spla.eigs(M, k=5, which="SM")
+        eigenvalues, eigenvectors = spla.eigs(M, k=k, which="SM")
         eigenvalues = eigenvalues.real  # take the real parts
     elif solver == "dense":
         # Convert sparse matrix to dense array
         A = M.toarray()
         # Use dense solver for symmetric matrices: scipy.linalg.eigh()
         eigenvalues_all, eigenvectors_all = la.eigh(A)
-        # Sort eigenvalues by absolute value and select the 5 smallest
+        # Sort eigenvalues by absolute value and select the k smallest
         idx = np.argsort(np.abs(eigenvalues_all))
-        eigenvalues = eigenvalues_all[idx][:5]
-        eigenvectors = eigenvectors_all[:, idx][:, :5]
+        eigenvalues = eigenvalues_all[idx][:k]
+        eigenvectors = eigenvectors_all[:, idx][:, :k]
     else:
         raise ValueError("Invalid solver type. Use 'sparse' or 'dense'.")
 
@@ -155,15 +157,15 @@ def compare_solver_performance(domain, N, num_runs):
     This function times the eigenvalue decomposition using:
         - The sparse solver (spla.eigs): Efficient for large, sparse matrices.
         - The dense solver (scipy.linalg.eigh): Optimized for symmetric matrices.
-    
+
     The function calculates and prints the mean and standard deviation of the run times.
     """
-    print(f"\nComparing solvers for the {domain} domain with grid size parameter N = {N} over {num_runs} runs")
+    print(
+        f"\nComparing solvers for the {domain} domain with grid size parameter N = {N} over {num_runs} runs")
 
     sparse_times = []
     dense_times = []
 
-    # Run the solvers for a number of runs
     for run in range(num_runs):
         # Time the sparse solver
         start_time = time.perf_counter()
@@ -177,21 +179,20 @@ def compare_solver_performance(domain, N, num_runs):
         dense_time = time.perf_counter() - start_time
         dense_times.append(dense_time)
 
-    # Calculate statistics
     sparse_mean = np.mean(sparse_times)
     sparse_std = np.std(sparse_times)
     dense_mean = np.mean(dense_times)
     dense_std = np.std(dense_times)
 
-    print(f"Sparse solver (spla.eigs) mean time: {sparse_mean:.6f} seconds, std: {sparse_std:.6f} seconds")
-    print(f"Dense solver (scipy.linalg.eigh) mean time: {dense_mean:.6f} seconds, std: {dense_std:.6f} seconds")
-
+    print(
+        f"Sparse solver (spla.eigs) mean time: {sparse_mean:.6f} seconds, std: {sparse_std:.6f} seconds")
+    print(
+        f"Dense solver (scipy.linalg.eigh) mean time: {dense_mean:.6f} seconds, std: {dense_std:.6f} seconds")
     print("\nEigenvalues from the last run of the sparse solver:")
     print(results_sparse['eigenvalues'])
     print("\nEigenvalues from the last run of the dense solver:")
     print(results_dense['eigenvalues'])
 
-    # Create a dictionary with statistics for later plotting
     stats = {
         "sparse_mean": sparse_mean,
         "sparse_std": sparse_std,
@@ -216,13 +217,15 @@ def plot_matrix(results, domain):
     plt.figure(figsize=(6, 5))
     plt.imshow(M.toarray(), cmap="viridis")
     plt.colorbar(label="Matrix Value")
-    plt.title(f"Visualization of Laplacian Matrix ({domain.capitalize()} Domain)")
+    plt.title(
+        f"Visualization of Laplacian Matrix ({domain.capitalize()} Domain)")
     plt.show()
 
 
-def plot_eigenmode(results, domain):
+def plot_eigenmodes(results, domain):
     """
-    Plots the first eigenmode on the domain.
+    Plots all available eigenmodes for the given domain as subplots in a single figure.
+    Each subplot title now shows the eigenfrequency for that mode.
 
     Parameters:
         results: Dictionary returned from simulate_domain.
@@ -232,26 +235,134 @@ def plot_eigenmode(results, domain):
     Ny = results['Ny']
     mask = results['mask']
     eigenvectors = results['eigenvectors']
+    eigenvalues = results['eigenvalues']
+    num_modes = eigenvectors.shape[1]
 
-    # Extract first eigenvector
-    v1 = eigenvectors[:, 0].real
-    if mask is None:
-        # For square or rectangular domains, reshape directly.
-        field = v1.reshape((Ny, Nx))
-    else:
-        # For circular domain, create a full grid and insert valid values.
-        field = np.zeros((Ny, Nx))
-        valid_indices = np.where(mask.flatten())[0]
-        temp = np.zeros(Nx * Ny)
-        v1 = v1[mask.flatten()]
-        temp[valid_indices] = v1
-        field = temp.reshape((Ny, Nx))
+    # Determine subplot grid size (roughly square layout)
+    cols = min(num_modes, 3)
+    rows = (num_modes + cols - 1) // cols
 
-    plt.figure(figsize=(6, 5))
-    plt.imshow(field, cmap="copper", extent=[0, Nx, 0, Ny])
-    plt.colorbar(label="Amplitude")
-    plt.title(f"First Eigenmode on {domain.capitalize()} Domain")
+    fig, axes = plt.subplots(rows, cols, figsize=(4 * cols, 4 * rows))
+    axes = np.array(axes).reshape(-1)
+
+    for i in range(num_modes):
+        v = eigenvectors[:, i].real
+        # Calculate eigenfrequency as sqrt(-eigenvalue) if the eigenvalue is negative
+        eigenvalue = eigenvalues[i]
+        freq = np.sqrt(-eigenvalue) if eigenvalue < 0 else np.nan
+
+        if mask is None:
+            field = v.reshape((Ny, Nx))
+        else:
+            field = np.zeros((Ny, Nx))
+            valid_indices = np.where(mask.flatten())[0]
+            temp = np.zeros(Nx * Ny)
+            temp[valid_indices] = v[mask.flatten()]
+            field = temp.reshape((Ny, Nx))
+
+        ax = axes[i]
+        im = ax.imshow(field, cmap="copper", extent=[0, Nx, 0, Ny])
+        ax.set_title(f"Mode {i+1}\nFreq = {freq:.2f}")
+        fig.colorbar(im, ax=ax, shrink=0.7)
+
+    for j in range(i + 1, len(axes)):
+        fig.delaxes(axes[j])
+
+    fig.suptitle(f"Eigenmodes for {domain.capitalize()} Domain", fontsize=14)
+    plt.tight_layout()
     plt.show()
+
+
+def plot_performance_stats(performance_stats, domains):
+    """
+    Plots the mean execution times and standard deviations of the sparse and dense solvers
+    for the specified domains.
+
+    Parameters:
+        performance_stats (dict): Dictionary where each key is a domain and the value is a
+                                  dictionary of performance statistics.
+        domains (list): List of domain names.
+    """
+    sparse_means = [performance_stats[d]["sparse_mean"] for d in domains]
+    sparse_stds = [performance_stats[d]["sparse_std"] for d in domains]
+    dense_means = [performance_stats[d]["dense_mean"] for d in domains]
+    dense_stds = [performance_stats[d]["dense_std"] for d in domains]
+
+    x = np.arange(len(domains))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.bar(x - width/2, sparse_means, width, yerr=sparse_stds,
+           label='Sparse (eigs)', capsize=5)
+    ax.bar(x + width/2, dense_means, width, yerr=dense_stds,
+           label='Dense (eigh)', capsize=5)
+
+    ax.set_ylabel('Mean Execution Time (seconds)')
+    ax.set_title('Solver Performance Comparison by Domain')
+    ax.set_xticks(x)
+    ax.set_xticklabels([d.capitalize() for d in domains])
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6):
+    """
+    For each domain in the list, computes and plots the eigenfrequency vs. domain size (N)
+    for multiple eigenmodes. The fundamental mode (mode 0) is plotted as a solid line, and 
+    all higher modes are plotted as dashed lines. The legend is built with only two entries per
+    domain: one for the fundamental and one for higher order modes.
+    """
+    plt.figure(figsize=(10, 7))
+    # One color per domain
+    colors = plt.cm.viridis(np.linspace(0, 1, len(domains)))
+    
+    for idx, domain in enumerate(domains):
+        # modes_freq will store frequencies for each mode across all N_values
+        modes_freq = np.zeros((k, len(N_values)))
+        
+        # Loop over all grid sizes and compute frequencies once per domain
+        for i, N in enumerate(N_values):
+            results = simulate_domain(domain, N, solver=solver, k=k)
+            eigenvalues = results['eigenvalues']
+            for mode in range(k):
+                # Only take the square-root if the eigenvalue is negative (as expected)
+                eigenvalue = eigenvalues[mode]
+                freq = np.sqrt(-eigenvalue) if eigenvalue < 0 else np.nan
+                modes_freq[mode, i] = freq
+        
+        # Plot the modes for this domain
+        for mode in range(k):
+            if mode == 0:
+                # Fundamental mode with solid line
+                line, = plt.plot(N_values, modes_freq[mode, :],
+                                 marker='o', linestyle='-', color=colors[idx], alpha=0.7)
+                fundamental_line = line
+            else:
+                # Higher order modes with dashed lines; plot without label to avoid duplicate legend entries.
+                if mode == 1:
+                    # Save one of the higher modes for the legend label
+                    line, = plt.plot(N_values, modes_freq[mode, :],
+                                     marker='o', linestyle='--', color=colors[idx], alpha=0.7)
+                    higher_line = line
+                else:
+                    plt.plot(N_values, modes_freq[mode, :],
+                             marker='o', linestyle='--', color=colors[idx], alpha=0.7)
+        
+        # Add dummy plot entries (invisible) to create clean legend entries for this domain
+        plt.plot([], [], color=colors[idx], marker='o', linestyle='-', 
+                 label=f"{domain.capitalize()} Fundamental")
+        plt.plot([], [], color=colors[idx], marker='o', linestyle='--', 
+                 label=f"{domain.capitalize()} Higher order")
+    
+    plt.xlabel("Domain Size Parameter N")
+    plt.ylabel("Eigenfrequency")
+    plt.title("Eigenfrequency vs Domain Size for Various Domains and Modes")
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
 
 
 if __name__ == "__main__":
@@ -262,33 +373,19 @@ if __name__ == "__main__":
     domains = ["square", "rectangle", "circle"]
     performance_stats = {}
 
-    # Run performance tests for each domain and store the statistics
+    # Run performance tests for each domain, store statistics, and plot eigenmodes
     for domain in domains:
         print(f"\nRunning performance test for {domain} domain:")
         _, _, stats = compare_solver_performance(domain, N, num_runs)
         performance_stats[domain] = stats
+        results = simulate_domain(domain, N, solver="sparse")
+        plot_eigenmodes(results, domain)
 
-    # Prepare data for plotting: mean execution times and standard deviations
-    sparse_means = [performance_stats[d]["sparse_mean"] for d in domains]
-    sparse_stds = [performance_stats[d]["sparse_std"] for d in domains]
-    dense_means = [performance_stats[d]["dense_mean"] for d in domains]
-    dense_stds = [performance_stats[d]["dense_std"] for d in domains]
+    # Plot the performance statistics using the existing function
+    plot_performance_stats(performance_stats, domains)
 
-    # Set up the bar chart (grouped by domain)
-    x = np.arange(len(domains))
-    width = 0.35
+    # Example: Plot eigenfrequency vs domain size for the square domain
+    N_values = np.linspace(20, 60, 20, dtype=int)
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    rects1 = ax.bar(x - width/2, sparse_means, width, yerr=sparse_stds,
-                    label='Sparse (eigs)', capsize=5)
-    rects2 = ax.bar(x + width/2, dense_means, width, yerr=dense_stds,
-                    label='Dense (eigh)', capsize=5)
-
-    ax.set_ylabel('Mean Execution Time (seconds)')
-    ax.set_title('Solver Performance Comparison by Domain')
-    ax.set_xticks(x)
-    ax.set_xticklabels([d.capitalize() for d in domains])
-    ax.legend()
-
-    plt.tight_layout()
-    plt.show()
+    # Plot N vs frequency for all domains and for multiple eigenmodes (pooled per domain)
+    plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6)
