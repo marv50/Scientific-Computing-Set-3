@@ -122,6 +122,11 @@ def simulate_domain(domain, N, solver="sparse", k=6):
         # Use the sparse eigenvalue solver (spla.eigs)
         eigenvalues, eigenvectors = spla.eigs(M, k=k, which="SM")
         eigenvalues = eigenvalues.real  # take the real parts
+        # Sort eigenpairs by the absolute value of the eigenvalues
+        idx = np.argsort(np.abs(eigenvalues))
+        eigenvalues = eigenvalues[idx]
+        eigenvectors = eigenvectors[:, idx]
+
     elif solver == "dense":
         # Convert sparse matrix to dense array
         A = M.toarray()
