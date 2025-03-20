@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.sparse as sp
 from matplotlib.colors import LogNorm
 from scipy.sparse.linalg import spsolve
-from Eigenmodes import laplacian_circular
+from EigenmodesTimeIndependent import laplacian_circular
 
 N = 8
 radius = 2
