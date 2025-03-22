@@ -61,9 +61,6 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
     The domain is defined on a square grid of size N x N (with coordinates in [-1, 1])
     and only those points satisfying x^2 + y^2 <= radius^2 are kept.
 
-    Note that this function is configured with dirichlet boundary conditions of 0, and assumes a positive concentration
-    source.
-
     Returns:
         M: Sparse Laplacian matrix for the circular domain.
         Nx, Ny: The grid dimensions (both equal to N).
@@ -87,12 +84,12 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
                  [0, -1, 1, -N, N],
                  shape=(size, size),
                  format='lil')
-    # Zero out rows and columns for points outside the circular domain
+    # Zero out rows for points outside the circular domain
     for i, val in enumerate(mask.flatten()):
         if not val:
             M[i, :] = 0
-            M[:, i] = 0
             M[i, i] = 1
+
     return M, N, N, mask
 
 

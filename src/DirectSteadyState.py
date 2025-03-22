@@ -27,9 +27,10 @@ def solve_steady_state(N: int, radius: float, source:tuple = (0.6, 1.2), plot_M_
 
     # Set a source on point (0.6, 1.2)
     source = (0.6, 1.2)
-    i, j = int(-(source[1] + radius) / (2 * radius) * N), int((source[0] + radius) / (2 * radius) * N)
+    i, j = int((-source[1] + radius) / (2 * radius) * N), int((source[0] + radius) / (2 * radius) * N)
     source_index = i * N + j
-
+    print(f"Source index: {source_index}")
+    
     # Set the source to 1
     M[source_index, :] = 0
     M[source_index, source_index] = 1
