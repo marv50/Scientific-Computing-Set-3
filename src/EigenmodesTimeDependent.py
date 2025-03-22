@@ -133,7 +133,6 @@ if __name__ == "__main__":
     # Static multi-mode evolution plot
     fig_static = plot_mode_evolution(
         N, time_steps, domain, mode_indices=[0, 2, 4],
-        num_frames=5, save_path=f"{domain}_static_modes_evolution.png"
-    )
+        num_frames=5)
     
 
