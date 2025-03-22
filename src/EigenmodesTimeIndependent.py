@@ -9,13 +9,11 @@ import time
 def laplacian_square(N):
     """
     Constructs the 2D Laplacian matrix for a square domain of grid size N x N.
-    Enforces boundary conditions of 1 on the edges.
 
     Returns:
         M: Sparse Laplacian matrix.
         Nx, Ny: Grid dimensions.
         mask: None (no mask is needed for a full square).
-        b: Right-hand side vector with boundary conditions.
     """
     size = N * N
     main_diag = -4 * np.ones(size)
@@ -28,31 +26,17 @@ def laplacian_square(N):
                  [0, -1, 1, -N, N],
                  shape=(size, size),
                  format='lil')
-    
-    # Create right-hand side vector for boundary conditions
-    b = np.zeros(size)
-    
-    # Set boundary conditions of 1 on the edges
-    for i in range(size):
-        row, col = i // N, i % N
-        if row == 0 or row == N-1 or col == 0 or col == N-1:  # If on boundary
-            M[i, :] = 0  # Zero out the row
-            M[i, i] = 1  # Set diagonal to 1
-            b[i] = 0     # Set boundary value to 1
-    
-    return M, N, N, None, b
+    return M, N, N, None
 
 
 def laplacian_rectangular(N):
     """
     Constructs the 2D Laplacian matrix for a rectangular domain with grid size (2N x N).
-    Enforces boundary conditions of 1 on the edges.
 
     Returns:
         M: Sparse Laplacian matrix.
         Nx, Ny: Grid dimensions (Nx = 2N, Ny = N).
         mask: None (no mask is needed for a full rectangle).
-        b: Right-hand side vector with boundary conditions.
     """
     Nx = 2 * N
     Ny = N
@@ -67,25 +51,12 @@ def laplacian_rectangular(N):
                  [0, -1, 1, -Nx, Nx],
                  shape=(size, size),
                  format='lil')
-    
-    # Create right-hand side vector for boundary conditions
-    b = np.zeros(size)
-    
-    # Set boundary conditions of 1 on the edges
-    for i in range(size):
-        row, col = i // Nx, i % Nx
-        if row == 0 or row == Ny-1 or col == 0 or col == Nx-1:  # If on boundary
-            M[i, :] = 0  # Zero out the row
-            M[i, i] = 1  # Set diagonal to 1
-            b[i] = 0     # Set boundary value to 1
-    
-    return M, Nx, Ny, None, b
+    return M, Nx, Ny, None
 
 
 def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
     """
     Constructs the 2D Laplacian matrix for a circular domain.
-    Enforces boundary conditions of 1 on the circle boundary.
 
     The domain is defined on a square grid of size N x N (with coordinates in [-1, 1])
     and only those points satisfying x^2 + y^2 <= radius^2 are kept.
@@ -94,7 +65,6 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
         M: Sparse Laplacian matrix for the circular domain.
         Nx, Ny: The grid dimensions (both equal to N).
         mask: A 2D boolean array (shape N x N) where True indicates the point is inside the circle.
-        b: Right-hand side vector with boundary conditions.
     """
     size = N * N
     # Create coordinates on a square in [-1, 1] x [-1, 1]
@@ -103,11 +73,7 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
     X, Y = np.meshgrid(x, y)
     # Boolean mask for points inside the circle
     mask = (X**2 + Y**2) <= radius**2
-    
-    # Create a mask for points on the boundary
-    inner_mask = (X**2 + Y**2) < (radius**2 - 0.1)  # Slightly smaller radius to detect boundary
-    boundary_mask = mask & ~inner_mask
-    
+
     main_diag = -4 * np.ones(size)
     side_diag = np.ones(size - 1)
     # Remove wrap-around connections between rows
@@ -118,24 +84,13 @@ def laplacian_circular(N, radius=0.8, xsize=1, ysize=1):
                  [0, -1, 1, -N, N],
                  shape=(size, size),
                  format='lil')
-    
-    # Create right-hand side vector for boundary conditions
-    b = np.zeros(size)
-    
-    # Zero out rows and columns for points outside the circular domain
-    # and set boundary conditions
-    for i, inside_val in enumerate(mask.flatten()):
-        if not inside_val:
-            # Point outside the circle
+    # Zero out rows for points outside the circular domain
+    for i, val in enumerate(mask.flatten()):
+        if not val:
             M[i, :] = 0
             M[i, i] = 1
-        elif boundary_mask.flatten()[i]:
-            # Point on the boundary of the circle
-            M[i, :] = 0
-            M[i, i] = 1
-            b[i] = 0
-    
-    return M, N, N, mask, b
+
+    return M, N, N, mask
 
 
 def simulate_domain(domain, N, solver="sparse", k=6):
@@ -154,11 +109,11 @@ def simulate_domain(domain, N, solver="sparse", k=6):
     """
     domain = domain.lower()
     if domain == "square":
-        M, Nx, Ny, mask, b = laplacian_square(N)
+        M, Nx, Ny, mask = laplacian_square(N)
     elif domain == "rectangle":
-        M, Nx, Ny, mask, b = laplacian_rectangular(N)
+        M, Nx, Ny, mask = laplacian_rectangular(N)
     elif domain in ["circle", "circular"]:
-        M, Nx, Ny, mask, b = laplacian_circular(N)
+        M, Nx, Ny, mask = laplacian_circular(N)
     else:
         raise ValueError(
             "Invalid domain. Choose 'square', 'rectangle', or 'circle'.")
@@ -190,8 +145,7 @@ def simulate_domain(domain, N, solver="sparse", k=6):
         'Ny': Ny,
         'mask': mask,
         'eigenvalues': eigenvalues,
-        'eigenvectors': eigenvectors,
-        'b': b  # Added right-hand side vector to results
+        'eigenvectors': eigenvectors
     }
     return results
 
@@ -256,7 +210,7 @@ def compare_solver_performance(domain, N, num_runs):
     return results_sparse, results_dense, stats
 
 
-def plot_matrix(results, domain, savefig=False):
+def plot_matrix(results, domain):
     """
     Plots the dense representation of the Laplacian matrix.
 
@@ -270,12 +224,10 @@ def plot_matrix(results, domain, savefig=False):
     plt.colorbar(label="Matrix Value")
     plt.title(
         f"Visualization of Laplacian Matrix ({domain.capitalize()} Domain)")
-    if savefig:
-        plt.savefig(f"fig/laplacian_matrix_{domain}.png", dpi=300)
     plt.show()
 
 
-def plot_eigenmodes(results, domain, savefig=False):
+def plot_eigenmodes(results, domain):
     """
     Plots all available eigenmodes for the given domain as subplots in a single figure.
     Each subplot title now shows the eigenfrequency for that mode.
@@ -323,12 +275,10 @@ def plot_eigenmodes(results, domain, savefig=False):
 
     fig.suptitle(f"Eigenmodes for {domain.capitalize()} Domain", fontsize=14)
     plt.tight_layout()
-    if savefig:
-        plt.savefig(f"fig/eigenmodes_{domain}.png", dpi=300)
     plt.show()
 
 
-def plot_performance_stats(performance_stats, domains, savefig=False):
+def plot_performance_stats(performance_stats, domains):
     """
     Plots the mean execution times and standard deviations of the sparse and dense solvers
     for the specified domains.
@@ -359,12 +309,10 @@ def plot_performance_stats(performance_stats, domains, savefig=False):
     ax.legend()
 
     plt.tight_layout()
-    if savefig:
-        plt.savefig("fig/solver_performance_comparison.png", dpi=300)
     plt.show()
 
 
-def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6, savefig=False):
+def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6):
     """
     For each domain in the list, computes and plots the eigenfrequency vs. domain size (N)
     for multiple eigenmodes. The fundamental mode (mode 0) is plotted as a solid line, and 
@@ -418,9 +366,6 @@ def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6, savefig
     plt.title("Eigenfrequency vs Domain Size for Various Domains and Modes")
     plt.grid(True)
     plt.legend()
-    plt.tight_layout()
-    if savefig:
-        plt.savefig("fig/eigenfrequency_vs_N.png", dpi=300)
     plt.show()
 
 
