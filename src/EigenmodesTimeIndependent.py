@@ -210,7 +210,7 @@ def compare_solver_performance(domain, N, num_runs):
     return results_sparse, results_dense, stats
 
 
-def plot_matrix(results, domain):
+def plot_matrix(results, domain, save=False):
     """
     Plots the dense representation of the Laplacian matrix.
 
@@ -222,12 +222,14 @@ def plot_matrix(results, domain):
     plt.figure(figsize=(6, 5))
     plt.imshow(M.toarray(), cmap="viridis")
     plt.colorbar(label="Matrix Value")
-    plt.title(
+    plt.title(        
         f"Visualization of Laplacian Matrix ({domain.capitalize()} Domain)")
+    if save:
+        plt.savefig(f"fig/laplacian_{domain}.png")
     plt.show()
 
 
-def plot_eigenmodes(results, domain):
+def plot_eigenmodes(results, domain, save=False):
     """
     Plots all available eigenmodes for the given domain as subplots in a single figure.
     Each subplot title now shows the eigenfrequency for that mode.
@@ -275,10 +277,12 @@ def plot_eigenmodes(results, domain):
 
     fig.suptitle(f"Eigenmodes for {domain.capitalize()} Domain", fontsize=14)
     plt.tight_layout()
+    if save:
+        plt.savefig(f"fig/eigenmodes_{domain}.png")
     plt.show()
 
 
-def plot_performance_stats(performance_stats, domains):
+def plot_performance_stats(performance_stats, domains, save=False):
     """
     Plots the mean execution times and standard deviations of the sparse and dense solvers
     for the specified domains.
@@ -309,10 +313,12 @@ def plot_performance_stats(performance_stats, domains):
     ax.legend()
 
     plt.tight_layout()
+    if save:
+        plt.savefig("fig/performance_comparison.png")
     plt.show()
 
 
-def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6):
+def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6, save=False):
     """
     For each domain in the list, computes and plots the eigenfrequency vs. domain size (N)
     for multiple eigenmodes. The fundamental mode (mode 0) is plotted as a solid line, and 
@@ -366,6 +372,9 @@ def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6):
     plt.title("Eigenfrequency vs Domain Size for Various Domains and Modes")
     plt.grid(True)
     plt.legend()
+    plt.tight_layout()
+    if save:
+        plt.savefig("fig/frequency_vs_N.png")
     plt.show()
 
 
