@@ -131,7 +131,7 @@ def simulate_domain(domain, N, solver="sparse", k=6):
         # Convert sparse matrix to dense array
         A = M.toarray()
         # Use dense solver for symmetric matrices: scipy.linalg.eigh()
-        eigenvalues_all, eigenvectors_all = la.eigh(A)
+        eigenvalues_all, eigenvectors_all = la.eig(A)
         # Sort eigenvalues by absolute value and select the k smallest
         idx = np.argsort(np.abs(eigenvalues_all))
         eigenvalues = eigenvalues_all[idx][:k]
@@ -192,7 +192,7 @@ def compare_solver_performance(domain, N, num_runs):
     print(
         f"Sparse solver (spla.eigs) mean time: {sparse_mean:.6f} seconds, std: {sparse_std:.6f} seconds")
     print(
-        f"Dense solver (scipy.linalg.eigh) mean time: {dense_mean:.6f} seconds, std: {dense_std:.6f} seconds")
+        f"Dense solver (scipy.linalg.eig) mean time: {dense_mean:.6f} seconds, std: {dense_std:.6f} seconds")
     print("\nEigenvalues from the last run of the sparse solver:")
     print(results_sparse['eigenvalues'])
     print("\nEigenvalues from the last run of the dense solver:")
@@ -269,13 +269,13 @@ def plot_eigenmodes(results, domain, save=False):
 
         ax = axes[i]
         im = ax.imshow(field, cmap="copper", extent=[0, Nx, 0, Ny])
-        ax.set_title(f"Mode {i+1}\nFreq = {freq:.2f}")
-        fig.colorbar(im, ax=ax, shrink=0.7)
+        ax.set_title(f"Mode {i+1}\nFreq = {freq:.2f}", fontsize=18)
+        fig.colorbar(im, ax=ax, shrink=0.7, aspect=10)
 
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
-    fig.suptitle(f"Eigenmodes for {domain.capitalize()} Domain", fontsize=14)
+    fig.suptitle(f"Eigenmodes for {domain.capitalize()} Domain", fontsize=22)
     plt.tight_layout()
     if save:
         plt.savefig(f"fig/eigenmodes_{domain}.png")
@@ -300,17 +300,18 @@ def plot_performance_stats(performance_stats, domains, save=False):
     x = np.arange(len(domains))
     width = 0.35
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(12, 8))
     ax.bar(x - width/2, sparse_means, width, yerr=sparse_stds,
            label='Sparse (eigs)', capsize=5)
     ax.bar(x + width/2, dense_means, width, yerr=dense_stds,
-           label='Dense (eigh)', capsize=5)
+           label='Dense (eig)', capsize=5)
 
-    ax.set_ylabel('Mean Execution Time (seconds)')
-    ax.set_title('Solver Performance Comparison by Domain')
+    ax.set_ylabel('Mean Execution Time (seconds)', fontsize=24)
+    ax.set_title('Solver Performance Comparison by Domain', fontsize=28)
     ax.set_xticks(x)
-    ax.set_xticklabels([d.capitalize() for d in domains])
-    ax.legend()
+    ax.set_xticklabels([d.capitalize() for d in domains], fontsize=22)
+    ax.legend(fontsize=22)
+    ax.tick_params(axis='both', labelsize=20)
 
     plt.tight_layout()
     if save:
@@ -325,9 +326,9 @@ def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6, save=Fa
     all higher modes are plotted as dashed lines. The legend is built with only two entries per
     domain: one for the fundamental and one for higher order modes.
     """
-    plt.figure(figsize=(10, 7))
+    plt.figure(figsize=(12, 9))
     # One color per domain
-    colors = plt.cm.viridis(np.linspace(0, 1, len(domains)))
+    colors = plt.cm.tab10(np.linspace(0, 0.8, len(domains)))
     
     for idx, domain in enumerate(domains):
         # modes_freq will store frequencies for each mode across all N_values
@@ -346,32 +347,18 @@ def plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6, save=Fa
         # Plot the modes for this domain
         for mode in range(k):
             if mode == 0:
-                # Fundamental mode with solid line
-                line, = plt.plot(N_values, modes_freq[mode, :],
-                                 marker='o', linestyle='-', color=colors[idx], alpha=0.7)
-                fundamental_line = line
+                plt.plot(N_values, modes_freq[mode, :], marker='o', linestyle='-', color=colors[idx], alpha=0.7, label=f"{domain.capitalize()} Fundamental")
             else:
-                # Higher order modes with dashed lines; plot without label to avoid duplicate legend entries.
-                if mode == 1:
-                    # Save one of the higher modes for the legend label
-                    line, = plt.plot(N_values, modes_freq[mode, :],
-                                     marker='o', linestyle='--', color=colors[idx], alpha=0.7)
-                    higher_line = line
-                else:
-                    plt.plot(N_values, modes_freq[mode, :],
-                             marker='o', linestyle='--', color=colors[idx], alpha=0.7)
+                plt.plot(N_values, modes_freq[mode, :], marker='o', linestyle='--', color=colors[idx], alpha=0.7)
         
         # Add dummy plot entries (invisible) to create clean legend entries for this domain
-        plt.plot([], [], color=colors[idx], marker='o', linestyle='-', 
-                 label=f"{domain.capitalize()} Fundamental")
-        plt.plot([], [], color=colors[idx], marker='o', linestyle='--', 
-                 label=f"{domain.capitalize()} Higher order")
+        plt.plot([], [], color=colors[idx], marker='o', linestyle='--', label=f"{domain.capitalize()} Higher order")
     
-    plt.xlabel("Domain Size Parameter N")
-    plt.ylabel("Eigenfrequency")
-    plt.title("Eigenfrequency vs Domain Size for Various Domains and Modes")
+    plt.xlabel("Domain Size Parameter N", fontsize=24)
+    plt.ylabel("Eigenfrequency", fontsize=24)
+    plt.title("Eigenfrequencies vs Domain Size ", fontsize=28)
     plt.grid(True)
-    plt.legend()
+    plt.legend(fontsize=22)
     plt.tight_layout()
     if save:
         plt.savefig("fig/frequency_vs_N.png")
@@ -385,21 +372,9 @@ if __name__ == "__main__":
 
     # Define the domains to test
     domains = ["square", "rectangle", "circle"]
-    performance_stats = {}
-
-    # Run performance tests for each domain, store statistics, and plot eigenmodes
-    for domain in domains:
-        print(f"\nRunning performance test for {domain} domain:")
-        _, _, stats = compare_solver_performance(domain, N, num_runs)
-        performance_stats[domain] = stats
-        results = simulate_domain(domain, N, solver="sparse")
-        plot_eigenmodes(results, domain)
-
-    # Plot the performance statistics using the existing function
-    plot_performance_stats(performance_stats, domains)
 
     # Example: Plot eigenfrequency vs domain size for the square domain
     N_values = np.linspace(20, 60, 20, dtype=int)
 
     # Plot N vs frequency for all domains and for multiple eigenmodes (pooled per domain)
-    plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6)
+    plot_domains_frequency_vs_N(domains, N_values, solver="sparse", k=6, save=True)

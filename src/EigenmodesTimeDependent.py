@@ -1,428 +1,139 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from matplotlib.colors import Normalize
-from EigenmodesTimeIndependent import *
+from matplotlib import animation
+
+# Import the simulation function
+if __name__ == '__main__':
+    from EigenmodesTimeIndependent import simulate_domain
+else:
+    from src.EigenmodesTimeIndependent import simulate_domain
 
 def T(t, lam, c=1, A=1, B=1):
-    """Time-dependent component of the wave equation solution."""
+    """Time-dependent component."""
     return A * np.cos(c * lam * t) + B * np.sin(c * lam * t)
 
-def simulate_time_dependent(N, time_steps, domain, mode_index=0):
-    """Simulate time-dependent wave equation for the given domain."""
+def simulate_time_dependent(N, time_steps, domain, mode_index):
+    """Compute time evolution for one eigenmode."""
     results = simulate_domain(domain, N)
     eigenvectors = results['eigenvectors']
     eigenvalues = results['eigenvalues']
     eigenvalue = eigenvalues[mode_index]
-    v = eigenvectors.real[:, mode_index]  
-    mask = results["mask"]
-    lam = np.sqrt(-eigenvalue) if eigenvalue < 0 else 0.1
+    v = eigenvectors.real[:, mode_index]
+    lam = np.sqrt(-eigenvalue) if eigenvalue < 0 else 0.1  # avoid zero frequency
+    Nx, Ny = results['Nx'], results['Ny']
     
-    # Get the correct dimensions from the results
-    Nx = results['Nx']
-    Ny = results['Ny']
+    # Prepare the spatial field for this mode
+    field0 = v.reshape((Ny, Nx))
     
-    # Initialize results array with the correct dimensions
-    results_array = np.zeros((time_steps, Ny, Nx))
+    # Create time evolution frames
+    frames = [field0 * T(t, lam) for t in range(time_steps)]
+    return np.array(frames), lam
 
-    for i in range(time_steps):
-        if mask is None:
-            field = v.reshape((Ny, Nx))
-        else:
-            field = np.zeros((Ny, Nx))
-            valid_indices = np.where(mask.flatten())[0]
-            temp = np.zeros(Nx * Ny)
-            temp[valid_indices] = v[valid_indices]
-            field = temp.reshape((Ny, Nx))
-        
-        results_array[i] = field * T(i, lam)
-    
-    return results_array, lam
-
-def animate_time_dependent(N, time_steps, domain, mode_index=0, save_animation=False):
-    """Create enhanced animation of the time-dependent solution."""
-    results, lam = simulate_time_dependent(N, time_steps, domain, mode_index)
-    
-    # Find global min/max for consistent color scaling
-    vmin, vmax = np.min(results), np.max(results)
-    abs_max = max(abs(vmin), abs(vmax))
-    
-    # Create symmetric color scale around zero
-    norm = Normalize(vmin=-abs_max, vmax=abs_max)
-    
-    # Create figure with two subplots - 2D heatmap and 3D surface
-    fig = plt.figure(figsize=(12, 6))
-    
-    # 2D heatmap subplot
-    ax1 = fig.add_subplot(121)
-    im = ax1.imshow(results[0], cmap='seismic', norm=norm, 
-                   interpolation='bilinear', animated=True)
-    ax1.set_title("2D Wave Pattern")
-    fig.colorbar(im, ax=ax1, label="Amplitude")
-    
-    # 3D surface subplot
-    ax2 = fig.add_subplot(122, projection='3d')
-    Ny, Nx = results[0].shape
-    X, Y = np.meshgrid(range(Nx), range(Ny))
-    
-    # Create the initial surface plot
-    surf = ax2.plot_surface(X, Y, results[0], cmap='viridis', 
-                          norm=norm, edgecolor='none', rstride=2, cstride=2)
-    ax2.set_title("3D Wave Surface")
-    ax2.set_zlim(-abs_max, abs_max)
-    
-    # Add a timer display
-    time_text = ax1.text(0.02, 0.95, '', transform=ax1.transAxes, color='white', 
-                        bbox=dict(facecolor='black', alpha=0.5))
-    
-    # Animation update function
-    def update(frame):
-        # Update 2D image
-        im.set_array(results[frame])
-        
-        # Update 3D surface (remove old and create new for better performance)
-        ax2.clear()
-        surf = ax2.plot_surface(X, Y, results[frame], cmap='viridis', 
-                              norm=norm, edgecolor='none', rstride=2, cstride=2)
-        ax2.set_zlim(-abs_max, abs_max)
-        ax2.set_title("3D Wave Surface")
-        
-        # Update timer
-        time_text.set_text(f'Time: {frame/time_steps:.2f}T (T=2π/{lam:.2f})')
-        
-        return im, surf, time_text
-    
-    # Create the animation
-    ani = animation.FuncAnimation(fig, update, frames=time_steps, interval=30, blit=False)
-    
-    # Add a main title
-    plt.suptitle(f"Wave Equation on {domain.capitalize()} Domain - Mode {mode_index+1}", fontsize=16)
-    plt.tight_layout()
-    
-    # Save animation if requested
-    if save_animation:
-        ani.save(f'wave_{domain}_mode{mode_index+1}.mp4', writer='ffmpeg', fps=30)
-    
-    plt.show()
-    return ani
-
-def plot_time_series(N, time_steps, domain, mode_index=0, num_frames=6, save_plot=False):
+def plot_mode_evolution(N, time_steps, domain, mode_indices=[0, 1, 2, 3], num_frames=5, save_path=None):
     """
-    Create a static plot showing the development of the wave over time.
-    Displays multiple frames from the time evolution as a grid of subplots.
+    Create a static plot showing the time evolution of multiple eigenmodes.
+    
+    Each row corresponds to a different mode, and each column shows a snapshot in time.
     """
-    results, lam = simulate_time_dependent(N, time_steps, domain, mode_index)
+    all_frames = []
+    lam_list = []
+    for m in mode_indices:
+        frames, lam = simulate_time_dependent(N, time_steps, domain, m)
+        all_frames.append(frames)
+        lam_list.append(lam)
     
-    # Find global min/max for consistent color scaling
-    vmin, vmax = np.min(results), np.max(results)
-    abs_max = max(abs(vmin), abs(vmax))
+    # Choose evenly spaced time indices
+    time_idxs = np.linspace(0, time_steps - 1, num_frames, dtype=int)
     
-    # Create symmetric color scale around zero
-    norm = Normalize(vmin=-abs_max, vmax=abs_max)
+    # Determine global amplitude range for consistent color scaling
+    global_max = max(np.max(np.abs(frames)) for frames in all_frames)
+    norm = Normalize(vmin=-global_max, vmax=global_max)
     
-    # Calculate the grid dimensions for the subplots
-    grid_size = int(np.ceil(np.sqrt(num_frames)))
-    fig, axes = plt.subplots(grid_size, grid_size, figsize=(12, 10))
+    num_modes = len(mode_indices)
+    fig, axes = plt.subplots(num_modes, num_frames, figsize=(3*num_frames, 3*num_modes))
     
-    # Ensure axes is a 2D array for consistent indexing
-    if grid_size == 1:
-        axes = np.array([[axes]])
-    elif grid_size > 1 and num_frames <= grid_size:
-        axes = axes.reshape(1, -1)
-    
-    # Select frames evenly distributed throughout the time series
-    frame_indices = np.linspace(0, time_steps-1, num_frames, dtype=int)
-    
-    # Create a list to store image references for a shared colorbar
-    images = []
-    
-    # Plot each selected frame
-    frame_count = 0
-    for i in range(grid_size):
-        for j in range(grid_size):
-            if frame_count < num_frames:
-                frame_idx = frame_indices[frame_count]
-                im = axes[i, j].imshow(results[frame_idx], cmap='seismic', 
-                                     norm=norm, interpolation='bilinear')
-                axes[i, j].set_title(f'Time: {frame_idx/time_steps:.2f}T')
-                images.append(im)
-                frame_count += 1
-            else:
-                # Hide unused subplots
-                axes[i, j].axis('off')
-    
-    # Add a colorbar that applies to all subplots
-    fig.colorbar(images[0], ax=axes.ravel().tolist(), label="Amplitude", shrink=0.7)
-    
-    # Add a main title
-    plt.suptitle(f"Wave Evolution on {domain.capitalize()} Domain - Mode {mode_index+1}\n(T=2π/{lam:.2f})", 
-                fontsize=16)
-    plt.tight_layout()
-    
-    # Save plot if requested
-    if save_plot:
-        plt.savefig(f'wave_timeseries_{domain}_mode{mode_index+1}.png', dpi=300, bbox_inches='tight')
-    
-    plt.show()
-    return fig
-
-def plot_3d_time_series(N, time_steps, domain, mode_index=0, num_frames=4, save_plot=False):
-    """
-    Create a static 3D plot showing the development of the wave over time.
-    Displays multiple 3D surface plots from the time evolution as a grid.
-    """
-    results, lam = simulate_time_dependent(N, time_steps, domain, mode_index)
-    
-    # Find global min/max for consistent color scaling
-    vmin, vmax = np.min(results), np.max(results)
-    abs_max = max(abs(vmin), abs(vmax))
-    
-    # Create symmetric color scale around zero
-    norm = Normalize(vmin=-abs_max, vmax=abs_max)
-    
-    # Setup grid for 3D plots
-    grid_size = int(np.ceil(np.sqrt(num_frames)))
-    fig = plt.figure(figsize=(15, 12))
-    
-    # Select frames evenly distributed throughout the time series
-    frame_indices = np.linspace(0, time_steps-1, num_frames, dtype=int)
-    
-    # Create mesh grid for 3D plotting
-    Ny, Nx = results[0].shape
-    X, Y = np.meshgrid(range(Nx), range(Ny))
-    
-    # Plot each selected frame as 3D surface
-    for i, frame_idx in enumerate(frame_indices):
-        if i < num_frames:
-            ax = fig.add_subplot(grid_size, grid_size, i+1, projection='3d')
-            surf = ax.plot_surface(X, Y, results[frame_idx], cmap='viridis', 
-                                  norm=norm, edgecolor='none', rstride=2, cstride=2)
-            ax.set_zlim(-abs_max, abs_max)
-            ax.set_title(f'Time: {frame_idx/time_steps:.2f}T')
-            
-            # Adjust view angle for better visualization
-            ax.view_init(elev=30, azim=45)
-    
-    # Add a main title
-    plt.suptitle(f"3D Wave Evolution on {domain.capitalize()} Domain - Mode {mode_index+1}\n(T=2π/{lam:.2f})", 
-                fontsize=16)
-    plt.tight_layout()
-    
-    # Save plot if requested
-    if save_plot:
-        plt.savefig(f'wave_3d_timeseries_{domain}_mode{mode_index+1}.png', dpi=300, bbox_inches='tight')
-    
-    plt.show()
-    return fig
-
-def compare_modes(N, time_steps, domain, num_modes=4, layout=None):
-    """
-    Create a multi-panel animation comparing different eigenmodes.
-    
-    Parameters:
-    -----------
-    N : int
-        Grid resolution
-    time_steps : int
-        Number of time steps to simulate
-    domain : str
-        Domain shape ('square', 'rectangle', 'circle', etc.)
-    num_modes : int
-        Number of modes to compare
-    layout : tuple, optional
-        Layout of the subplots as (rows, cols). If None, automatically determined.
-    """
-    # Determine subplot layout if not specified
-    if layout is None:
-        # Calculate an appropriate layout based on num_modes
-        rows = int(np.ceil(np.sqrt(num_modes)))
-        cols = int(np.ceil(num_modes / rows))
-        layout = (rows, cols)
-    else:
-        rows, cols = layout
-        # Ensure layout has enough panels
-        if rows * cols < num_modes:
-            rows = int(np.ceil(np.sqrt(num_modes)))
-            cols = int(np.ceil(num_modes / rows))
-            layout = (rows, cols)
-            print(f"Warning: Specified layout is too small. Using {layout} instead.")
-    
-    # Create figure with subplots for each mode
-    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 3*rows))
-    
-    # Ensure axes is always a 2D array for consistent indexing
+    # If there's only one row or column, ensure axes is 2D
     if num_modes == 1:
-        axes = np.array([[axes]])
-    elif rows == 1:
-        axes = axes.reshape(1, -1)
-    elif cols == 1:
-        axes = axes.reshape(-1, 1)
+        axes = axes[np.newaxis, :]
+    if num_frames == 1:
+        axes = axes[:, np.newaxis]
     
-    animations = []
-    all_results = []
-    all_lams = []
+    for i, frames in enumerate(all_frames):
+        for j, t_idx in enumerate(time_idxs):
+            ax = axes[i, j]
+            im = ax.imshow(frames[t_idx], cmap='seismic', norm=norm, interpolation='none')
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if j == 0:
+                ax.set_ylabel(f"Mode {mode_indices[i]+1}\nf={lam_list[i]:.2f}", fontsize=18)
+            ax.set_title(f"t = {t_idx/time_steps:.2f}", fontsize=20)
     
-    # Calculate max value across all modes for consistent color scaling
-    max_val = 0
-    for mode in range(num_modes):
-        results, lam = simulate_time_dependent(N, time_steps, domain, mode)
-        all_results.append(results)
-        all_lams.append(lam)
-        max_val = max(max_val, np.max(np.abs(results)))
-    
-    # Create a symmetric color scale around zero
-    norm = Normalize(vmin=-max_val, vmax=max_val)
-    
-    # Set up each subplot
-    for i in range(rows):
-        for j in range(cols):
-            mode_idx = i * cols + j
-            if mode_idx < num_modes:
-                im = axes[i, j].imshow(all_results[mode_idx][0], cmap='seismic', norm=norm, 
-                                      interpolation='bilinear', animated=True)
-                axes[i, j].set_title(f"Mode {mode_idx+1} (f={all_lams[mode_idx]:.2f})")
-                animations.append(im)
-            else:
-                # Hide unused subplots
-                axes[i, j].axis('off')
-    
-    # Add a colorbar
-    fig.colorbar(animations[0], ax=axes.ravel().tolist(), label="Amplitude", shrink=0.7)
-    
-    # Animation update function
-    def update(frame):
-        for i in range(num_modes):
-            animations[i].set_array(all_results[i][frame])
-        return animations
-    
-    # Create the animation
-    ani = animation.FuncAnimation(fig, update, frames=time_steps, interval=40, blit=False)
-    
-    plt.suptitle(f"Wave Equation Modes on {domain.capitalize()} Domain", fontsize=16)
-    plt.tight_layout()
-    plt.show()
-    return ani
+    # Add a single colorbar for all subplots with increased label font size
+    cbar = fig.colorbar(im, ax=axes.ravel().tolist(), orientation='vertical', label='Amplitude')
+    cbar.ax.tick_params(labelsize=14)
+    cbar.set_label('Amplitude', fontsize=20)
 
-def compare_modes_static(N, time_steps, domain, num_modes=4, time_point=None, layout=None, save_plot=False):
-    """
-    Create a static comparison of different eigenmodes at a specific time point.
     
-    Parameters:
-    -----------
-    N : int
-        Grid resolution
-    time_steps : int
-        Number of time steps to simulate
-    domain : str
-        Domain shape ('square', 'rectangle', 'circle', etc.)
-    num_modes : int
-        Number of modes to compare
-    time_point : int, optional
-        Time step to display. If None, uses the time step with maximum amplitude.
-    layout : tuple, optional
-        Layout of the subplots as (rows, cols). If None, automatically determined.
-    save_plot : bool
-        Whether to save the plot to a file
-    """
-    # Determine subplot layout if not specified
-    if layout is None:
-        # Calculate an appropriate layout based on num_modes
-        rows = int(np.ceil(np.sqrt(num_modes)))
-        cols = int(np.ceil(num_modes / rows))
-        layout = (rows, cols)
-    else:
-        rows, cols = layout
-        # Ensure layout has enough panels
-        if rows * cols < num_modes:
-            rows = int(np.ceil(np.sqrt(num_modes)))
-            cols = int(np.ceil(num_modes / rows))
-            layout = (rows, cols)
-            print(f"Warning: Specified layout is too small. Using {layout} instead.")
+    fig.suptitle(f"Wave Eigenmode Evolution on {domain.capitalize()} Domain", fontsize=24)
     
-    # Create figure with subplots for each mode
-    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 3*rows))
-    
-    # Ensure axes is always a 2D array for consistent indexing
-    if num_modes == 1:
-        axes = np.array([[axes]])
-    elif rows == 1:
-        axes = axes.reshape(1, -1)
-    elif cols == 1:
-        axes = axes.reshape(-1, 1)
-    
-    all_results = []
-    all_lams = []
-    
-    # Simulate all modes
-    for mode in range(num_modes):
-        results, lam = simulate_time_dependent(N, time_steps, domain, mode)
-        all_results.append(results)
-        all_lams.append(lam)
-    
-    # Find global max value for consistent color scaling
-    max_val = max([np.max(np.abs(res)) for res in all_results])
-    norm = Normalize(vmin=-max_val, vmax=max_val)
-    
-    # Determine time point to display
-    if time_point is None:
-        # Find time point with maximum amplitude across all modes
-        max_amplitudes = [np.max(np.abs(res)) for res in all_results]
-        max_mode = np.argmax(max_amplitudes)
-        max_frame = np.argmax(np.max(np.abs(all_results[max_mode]), axis=(1, 2)))
-        time_point = max_frame
-    
-    # Plot each mode at the selected time point
-    for i in range(rows):
-        for j in range(cols):
-            mode_idx = i * cols + j
-            if mode_idx < num_modes:
-                im = axes[i, j].imshow(all_results[mode_idx][time_point], cmap='seismic', 
-                                      norm=norm, interpolation='bilinear')
-                axes[i, j].set_title(f"Mode {mode_idx+1} (f={all_lams[mode_idx]:.2f})")
-            else:
-                # Hide unused subplots
-                axes[i, j].axis('off')
-    
-    # Add a colorbar
-    fig.colorbar(im, ax=axes.ravel().tolist(), label="Amplitude", shrink=0.7)
-    
-    plt.suptitle(f"Wave Equation Modes on {domain.capitalize()} Domain\nTime: {time_point/time_steps:.2f}T", 
-                fontsize=16)
-    plt.tight_layout()
-    
-    # Save plot if requested
-    if save_plot:
-        plt.savefig(f'wave_modes_comparison_{domain}_{num_modes}modes.png', dpi=300, bbox_inches='tight')
-    
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
     return fig
+
+
+def create_multiple_mode_animation(N, time_steps, domain, mode_indices=[0, 1, 2], fps=10, save_path=None):
+    """Create an animation showing the time evolution of multiple eigenmodes."""
+    num_modes = len(mode_indices)
+    frames_list = []
+    lam_list = []
+    
+    # Simulate time evolution for each mode
+    for mode_index in mode_indices:
+        frames, lam = simulate_time_dependent(N, time_steps, domain, mode_index)
+        frames_list.append(frames)
+        lam_list.append(lam)
+
+    # Set up the figure and axes for subplots
+    fig, axes = plt.subplots(1, num_modes, figsize=(5*num_modes, 5))
+    norm = Normalize(vmin=-np.max(np.abs(frames_list)), vmax=np.max(np.abs(frames_list)))
+
+    # Create initial plot for each mode
+    ims = []
+    for i, frames in enumerate(frames_list):
+        im = axes[i].imshow(frames[0], cmap='seismic', norm=norm, interpolation='none')
+        axes[i].set_title(f"Mode {mode_indices[i]+1} (f={lam_list[i]:.2f})", fontsize=12)
+        axes[i].set_xticks([])
+        axes[i].set_yticks([])
+        ims.append(im)
+
+    # Update function for animation
+    def update(frame_idx):
+        for i, frames in enumerate(frames_list):
+            ims[i].set_array(frames[frame_idx])
+        return ims
+
+    # Create the animation
+    ani = animation.FuncAnimation(fig, update, frames=time_steps, interval=1000/fps, blit=False)
+    
+    # Add a colorbar to the figure
+    cbar = fig.colorbar(ims[0], ax=axes, orientation='vertical', fraction=0.02, pad=0.04)
+    cbar.set_label('Amplitude')
+    
+    if save_path:
+        ani.save(save_path, writer='pillow', fps=fps)
+    return ani, fig
 
 if __name__ == "__main__":
-    N = 70  # Grid size
-    time_steps = 100  # Number of frames in the animation
+    N = 70           # grid resolution
+    time_steps = 100 # number of time frames
+    domain = 'circle'  # choose from 'square', 'rectangle', 'circle', etc.
     
-    # Example usage of the enhanced functions
+    # Static multi-mode evolution plot
+    fig_static = plot_mode_evolution(
+        N, time_steps, domain, mode_indices=[0, 2, 4],
+        num_frames=5, save_path=f"{domain}_static_modes_evolution.png"
+    )
     
-    # 1. Visualization of a single mode with animation
-    # animate_time_dependent(N, time_steps, 'circle', mode_index=2)
-    
-    # 2. Static plot of time evolution for a single mode
-    # plot_time_series(N, time_steps, 'square', mode_index=0, num_frames=9)
-    
-    # 3. Static 3D plot of time evolution
-    # plot_3d_time_series(N, time_steps, 'rectangle', mode_index=1, num_frames=4)
-    
-    # 4. Compare different modes with animation
-    # compare_modes(N, time_steps, 'square', num_modes=6, layout=(2, 3))
-    
-    # 5. Static comparison of different modes
-    # compare_modes_static(N, time_steps, 'circle', num_modes=9, layout=(3, 3))
-    
-    # Example for running multiple domains
-    for domain in ['square', 'rectangle', 'circle']:
-        print(f"Comparing modes for {domain} domain...")
-        # You can now easily adjust the number of modes and layout
-        compare_modes(N, time_steps, domain, num_modes=6, layout=(2, 2))
-        
-        # Create static visualizations
-        plot_time_series(N, time_steps, domain, mode_index=0, num_frames=6)
+
