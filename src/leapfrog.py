@@ -103,20 +103,21 @@ def leapfrog_driven(omega_d, k, A, m, dt, steps):
 
     return x_vals, v_vals
 
-if __name__ == '__main__':
-    # Parameters
-    k_values = [0.5, 1.0, 2.0] # Different spring constants for comparison
-    m = 1.0 # Mass
-    omega_d = 1.0 # Driving frequency for J
-    A = 0.5 # Driving amplitude for J
-    dt = 0.1 # Time step
-    t_max = 50 # Total time
-    steps = int(t_max / dt)
+def plot_leapfrog_results(k_values, m, A, dt, t_max, x0, v0, t0):
+    """
+    Plots the results of the Leapfrog integration for different spring constants and driving frequencies.
 
-    # Initial conditions
-    x0 = 1.0 # Initial position
-    v0 = 0.0 # Initial velocity
-    t0 = 0.0 # Initial time
+    Parameters:
+    k_values (list): List of spring constants.
+    m (float): Mass of the oscillator.
+    A (float): Driving amplitude.
+    dt (float): Time step size.
+    t_max (float): Total time.
+    x0 (float): Initial position.
+    v0 (float): Initial velocity.
+    t0 (float): Initial time.
+    """
+    steps = int(t_max / dt)
 
     # Plotting Leapfrog results for different k values
     fig, axs = plt.subplots(4, 1, figsize=(8, 12))
@@ -135,14 +136,20 @@ if __name__ == '__main__':
         axs[2].plot(t_vals, energy_vals, label=f"Leapfrog Energy (k={k})")
         axs[2].plot(sol.t, energy_rk45, linestyle="dashed", label=f"RK45 Energy (k={k})")
 
-    # Set titles and legends for better readability
-    axs[0].set_title("Position vs Time")
+    # Set titles, labels, and legends for better readability
+    axs[0].set_title("Position vs Time", fontsize=14)
+    axs[0].set_xlabel("Time", fontsize=12)
+    axs[0].set_ylabel("Position", fontsize=12)
     axs[0].legend()
 
-    axs[1].set_title("Velocity vs Time")
+    axs[1].set_title("Velocity vs Time", fontsize=14)
+    axs[1].set_xlabel("Time", fontsize=12)
+    axs[1].set_ylabel("Velocity", fontsize=12)
     axs[1].legend()
 
-    axs[2].set_title("Energy Conservation")
+    axs[2].set_title("Energy Conservation", fontsize=14)
+    axs[2].set_xlabel("Time", fontsize=12)
+    axs[2].set_ylabel("Energy", fontsize=12)
     axs[2].legend()
 
     # Phase plots for different driving frequencies
@@ -150,8 +157,23 @@ if __name__ == '__main__':
         x_vals, v_vals = leapfrog_driven(omega, k_values[1], A, m, dt, steps)
         axs[3].plot(x_vals, v_vals, label=f"ω={omega}")
 
-    axs[3].set_title("Phase Space for Driven Oscillator")
+    axs[3].set_title("Phase Space for Driven Oscillator", fontsize=14)
+    axs[3].set_xlabel("Position", fontsize=12)
+    axs[3].set_ylabel("Velocity", fontsize=12)
     axs[3].legend()
 
     plt.tight_layout()
     plt.savefig('fig/leapfrog.png')
+
+if __name__ == '__main__':
+    # Parameters
+    k_values = [0.5, 1.0, 2.0] # Different spring constants for comparison
+    m = 1.0 # Mass
+    A = 0.5 # Driving amplitude for J
+    dt = 0.1 # Time step
+    t_max = 50 # Total time
+    x0 = 1.0 # Initial position
+    v0 = 0.0 # Initial velocity
+    t0 = 0.0 # Initial time
+
+    plot_leapfrog_results(k_values, m, A, dt, t_max, x0, v0, t0)
