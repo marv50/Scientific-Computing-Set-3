@@ -60,12 +60,12 @@ def solve_steady_state(N: int, radius: float, source:tuple = (0.6, 1.2), plot_M_
     return x
 
 if __name__ == '__main__':
-    N = 100
+    N = 50
     radius = 2
     x = solve_steady_state(N, radius, plot_M_mask=True)
     plt.imshow(x.reshape((N, N)), cmap='viridis', norm=LogNorm())
     plt.colorbar(label="Value")
     plt.xlabel("Column")
     plt.ylabel("Row")
-    plt.title("Steady State Solution")
+    plt.title("Steady State Solution", fontsize=20)
     plt.show()

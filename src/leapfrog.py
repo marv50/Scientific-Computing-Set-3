@@ -137,19 +137,19 @@ def plot_leapfrog_results(k_values, m, A, dt, t_max, x0, v0, t0):
         axs[2].plot(sol.t, energy_rk45, linestyle="dashed", label=f"RK45 Energy (k={k})")
 
     # Set titles, labels, and legends for better readability
-    axs[0].set_title("Position vs Time", fontsize=14)
-    axs[0].set_xlabel("Time", fontsize=12)
-    axs[0].set_ylabel("Position", fontsize=12)
+    axs[0].set_title("Position vs Time", fontsize=18)
+    axs[0].set_xlabel("Time", fontsize=16)
+    axs[0].set_ylabel("Position", fontsize=16)
     axs[0].legend()
 
-    axs[1].set_title("Velocity vs Time", fontsize=14)
-    axs[1].set_xlabel("Time", fontsize=12)
-    axs[1].set_ylabel("Velocity", fontsize=12)
+    axs[1].set_title("Velocity vs Time", fontsize=18)
+    axs[1].set_xlabel("Time", fontsize=16)
+    axs[1].set_ylabel("Velocity", fontsize=16)
     axs[1].legend()
 
-    axs[2].set_title("Energy Conservation", fontsize=14)
-    axs[2].set_xlabel("Time", fontsize=12)
-    axs[2].set_ylabel("Energy", fontsize=12)
+    axs[2].set_title("Energy Conservation", fontsize=18)
+    axs[2].set_xlabel("Time", fontsize=16)
+    axs[2].set_ylabel("Energy", fontsize=16)
     axs[2].legend()
 
     # Phase plots for different driving frequencies
@@ -157,10 +157,10 @@ def plot_leapfrog_results(k_values, m, A, dt, t_max, x0, v0, t0):
         x_vals, v_vals = leapfrog_driven(omega, k_values[1], A, m, dt, steps)
         axs[3].plot(x_vals, v_vals, label=f"ω={omega}")
 
-    axs[3].set_title("Phase Space for Driven Oscillator", fontsize=14)
-    axs[3].set_xlabel("Position", fontsize=12)
-    axs[3].set_ylabel("Velocity", fontsize=12)
-    axs[3].legend()
+    axs[3].set_title("Phase Space for Driven Oscillator", fontsize=22)
+    axs[3].set_xlabel("Position", fontsize=16)
+    axs[3].set_ylabel("Velocity", fontsize=16)
+    axs[3].legend(fontsize=12)
 
     plt.tight_layout()
     plt.savefig('fig/leapfrog.png')

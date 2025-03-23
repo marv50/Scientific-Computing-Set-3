@@ -1,5 +1,10 @@
 # Scientific-Computing-Set-3
 
+## Solving the Eigenvalue Problem
+
+### Files
+- src/EigenmodesTimeIndependent: Implements the construction of the 2D laplace matrix for differently shaped domains and solves for eigenvalues. This results in the spatial part of our wave solution. It enables plotting of the matrix as well as different eigenmodes.
+- src/EigenmodesTimeDependent: Incorporates a spatial part into the equation, enabling investigation of the time dependent system. It enables plotting and animation of the time development of the system
 
 ## Direct methods for solving steady state problems
 
