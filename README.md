@@ -1,5 +1,17 @@
 # Scientific-Computing-Set-3
 
+
+## Direct methods for solving steady state problems
+
+### Files
+- `src/DirectSteadyState.py`: Contain the implementation of the direct solver.
+
+### Description
+
+Solves the steady state heat equation for a circular domain with a source at a given point.
+The source is a point source, i.e. the source is a delta function at the given point.
+If the file is ran a solution will be plotted.
+
 ## Leapfrog Integration for a Simple and Driven Harmonic Oscillator
 
 This repository contains a Python script that implements the Leapfrog integration method to simulate the motion of a harmonic oscillator using Hooke's Law. The script also includes a comparison with the RK45 integrator to analyze energy conservation properties. Additionally, a driven oscillator variant is implemented to study resonance effects.
@@ -29,3 +41,20 @@ The script generates the following plots:
 - Phase Space for Driven Oscillator
 
 The plots are saved as `fig/leapfrog.png`.
+
+## Notebook
+
+Run notebook.ipynb in order to have all relevant, output generating functions in one file.
+
+## Requirements
+
+- Python 3.x
+- NumPy
+- Matplotlib
+- Numba
+
+All dependencies can be installed via `pip`.
+
+```
+pip install requirements.txt
+```
