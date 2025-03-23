@@ -140,17 +140,17 @@ def plot_leapfrog_results(k_values, m, A, dt, t_max, x0, v0, t0):
     axs[0].set_title("Position vs Time", fontsize=18)
     axs[0].set_xlabel("Time", fontsize=16)
     axs[0].set_ylabel("Position", fontsize=16)
-    axs[0].legend()
+    axs[0].legend(fontsize=14, loc="right")
 
     axs[1].set_title("Velocity vs Time", fontsize=18)
     axs[1].set_xlabel("Time", fontsize=16)
     axs[1].set_ylabel("Velocity", fontsize=16)
-    axs[1].legend()
+    axs[1].legend(fontsize=14, loc="right")
 
     axs[2].set_title("Energy Conservation", fontsize=18)
     axs[2].set_xlabel("Time", fontsize=16)
     axs[2].set_ylabel("Energy", fontsize=16)
-    axs[2].legend()
+    axs[2].legend(fontsize=14, loc="right")
 
     # Phase plots for different driving frequencies
     for omega in [0.8, 1.0, 1.2]: # Resonant and non-resonant cases
@@ -160,7 +160,7 @@ def plot_leapfrog_results(k_values, m, A, dt, t_max, x0, v0, t0):
     axs[3].set_title("Phase Space for Driven Oscillator", fontsize=22)
     axs[3].set_xlabel("Position", fontsize=16)
     axs[3].set_ylabel("Velocity", fontsize=16)
-    axs[3].legend(fontsize=12)
+    axs[3].legend(fontsize=14, loc="right")
 
     plt.tight_layout()
     plt.savefig('fig/leapfrog.png')
